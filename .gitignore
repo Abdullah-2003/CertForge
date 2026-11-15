@@ -1,0 +1,8 @@
+tools/
+instance/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.key
+*.pem
