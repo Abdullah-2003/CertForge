@@ -1,4 +1,5 @@
 import datetime as dt
+import ipaddress
 import os
 from pathlib import Path
 
@@ -67,3 +68,48 @@ def load_root(cadir):
     key = serialization.load_pem_private_key((cadir / "root.key").read_bytes(), password=None)
     cert = x509.load_pem_x509_certificate((cadir / "root.pem").read_bytes())
     return key, cert
+
+
+def _san(s):
+    try:
+        return x509.IPAddress(ipaddress.ip_address(s))
+    except ValueError:
+        return x509.DNSName(s)
+
+
+def make_csr(cn, sans=(), org=None):
+    key = ec.generate_private_key(ec.SECP256R1())
+    attrs = [x509.NameAttribute(NameOID.COMMON_NAME, cn)]
+    if org:
+        attrs.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, org))
+    b = x509.CertificateSigningRequestBuilder().subject_name(x509.Name(attrs))
+    if sans:
+        b = b.add_extension(x509.SubjectAlternativeName([_san(s) for s in sans]), critical=False)
+    csr = b.sign(key, hashes.SHA256())
+    keypem = key.private_bytes(
+        serialization.Encoding.PEM,
+        serialization.PrivateFormat.PKCS8,
+        serialization.NoEncryption(),
+    )
+    return keypem, csr.public_bytes(serialization.Encoding.PEM)
+
+
+def parse_csr(csr_pem):
+    csr = x509.load_pem_x509_csr(csr_pem)
+    if not csr.is_signature_valid:
+        raise ValueError("bad csr signature")
+
+    cn = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    if not cn:
+        raise ValueError("csr has no common name")
+    org = csr.subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)
+
+    sans = []
+    try:
+        ext = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    except x509.ExtensionNotFound:
+        ext = []
+    for name in ext:
+        sans.append(str(name.value))
+
+    return {"cn": cn[0].value, "sans": sans, "org": org[0].value if org else None}
