@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Request a certificate · CertForge{% endblock %}
+{% block content %}
+<h1>Request a certificate</h1>
+<p>Generate a new key and signing request, or submit an existing PEM signing request for approval.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+<div class="request-forms">
+    <section class="panel">
+        <h2>Generate a signing request</h2>
+        <form method="post">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <input type="hidden" name="mode" value="generate">
+            <label for="cn">Common name</label>
+            <input id="cn" name="cn" placeholder="localhost" value="{{ request.form.get('cn', '') }}" required>
+            <label for="sans">DNS names and IP addresses</label>
+            <input id="sans" name="sans" placeholder="localhost, 127.0.0.1" value="{{ request.form.get('sans', '') }}" aria-describedby="sans-help">
+            <small id="sans-help">Separate names with commas or spaces.</small>
+            <label for="org">Organization (optional)</label>
+            <input id="org" name="org" value="{{ request.form.get('org', '') }}">
+            <p>You can download your private key once after submitting. Save it before starting another request.</p>
+            <button type="submit">Generate and submit</button>
+        </form>
+    </section>
+    <section class="panel">
+        <h2>Use an existing signing request</h2>
+        <form method="post">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <input type="hidden" name="mode" value="paste">
+            <label for="csr">PEM signing request</label>
+            <textarea id="csr" name="csr" rows="12" placeholder="-----BEGIN CERTIFICATE REQUEST-----" required spellcheck="false">{{ request.form.get('csr', '') }}</textarea>
+            <p>Paste the complete CSR, including its BEGIN and END lines. Keep your existing private key.</p>
+            <button type="submit">Submit signing request</button>
+        </form>
+    </section>
+</div>
+{% endblock %}

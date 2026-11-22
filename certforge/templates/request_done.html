@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Request submitted · CertForge{% endblock %}
+{% block content %}
+<section class="panel receipt">
+    <h1>Request submitted</h1>
+    <p>Request <strong>#{{ row.id }}</strong> for <strong>{{ row.cn }}</strong> is {{ row.state }}.</p>
+    {% if row.has_key %}
+    <p>Download your private key now and keep it safe. This download works once. Save it before starting another request.</p>
+    <form method="post" action="{{ url_for('download_key') }}">
+        <input type="hidden" name="csrf" value="{{ session.csrf }}">
+        <button type="submit">Download private key</button>
+    </form>
+    {% endif %}
+    <p><a class="text-link" href="{{ url_for('submit_request') }}">Submit another request</a></p>
+</section>
+{% endblock %}

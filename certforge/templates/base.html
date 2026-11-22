@@ -11,7 +11,7 @@
         <a class="brand" href="{{ url_for('dashboard') }}">CertForge</a>
         <nav aria-label="Main navigation">
             <a href="{{ url_for('dashboard') }}"{% if request.path == '/' %} aria-current="page"{% endif %}>Dashboard</a>
-            <a href="{{ request.script_root }}/request">Request</a>
+            <a href="{{ url_for('submit_request') }}"{% if request.path.startswith('/request') %} aria-current="page"{% endif %}>Request</a>
             <a href="{{ request.script_root }}/admin">Admin</a>
         </nav>
     </header>
