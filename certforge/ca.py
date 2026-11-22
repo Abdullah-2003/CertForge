@@ -113,3 +113,60 @@ def parse_csr(csr_pem):
         sans.append(str(name.value))
 
     return {"cn": cn[0].value, "sans": sans, "org": org[0].value if org else None}
+
+
+def sign_csr(cadir, csr_pem, days=365):
+    parse_csr(csr_pem)
+    csr = x509.load_pem_x509_csr(csr_pem)
+    cakey, cacert = load_root(cadir)
+    now = dt.datetime.now(dt.timezone.utc)
+
+    b = (
+        x509.CertificateBuilder()
+        .subject_name(csr.subject)
+        .issuer_name(cacert.subject)
+        .public_key(csr.public_key())
+        .serial_number(x509.random_serial_number())
+        .not_valid_before(now - dt.timedelta(minutes=5))
+        .not_valid_after(now + dt.timedelta(days=days))
+        .add_extension(x509.BasicConstraints(ca=False, path_length=None), critical=True)
+        .add_extension(
+            x509.KeyUsage(
+                digital_signature=True,
+                content_commitment=False,
+                key_encipherment=True,
+                data_encipherment=False,
+                key_agreement=False,
+                key_cert_sign=False,
+                crl_sign=False,
+                encipher_only=False,
+                decipher_only=False,
+            ),
+            critical=True,
+        )
+        .add_extension(x509.ExtendedKeyUsage([x509.ExtendedKeyUsageOID.SERVER_AUTH]), critical=False)
+        .add_extension(x509.SubjectKeyIdentifier.from_public_key(csr.public_key()), critical=False)
+        .add_extension(
+            x509.AuthorityKeyIdentifier.from_issuer_public_key(cacert.public_key()),
+            critical=False,
+        )
+        .add_extension(
+            x509.CRLDistributionPoints([
+                x509.DistributionPoint(
+                    full_name=[x509.UniformResourceIdentifier("http://localhost:5000/crl.pem")],
+                    relative_name=None,
+                    reasons=None,
+                    crl_issuer=None,
+                )
+            ]),
+            critical=False,
+        )
+    )
+    try:
+        sans = csr.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        b = b.add_extension(sans, critical=False)
+    except x509.ExtensionNotFound:
+        pass
+
+    cert = b.sign(cakey, hashes.SHA256())
+    return cert.public_bytes(serialization.Encoding.PEM)
