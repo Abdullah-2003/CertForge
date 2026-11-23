@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Admin · CertForge{% endblock %}
+{% block content %}
+<div class="admin-heading">
+    <h1>Admin</h1>
+    <form method="post" action="{{ url_for('admin_logout') }}">
+        <input type="hidden" name="csrf" value="{{ session.csrf }}">
+        <button type="submit">Log out</button>
+    </form>
+</div>
+{% for message in get_flashed_messages() %}
+<p class="notice" role="status">{{ message }}</p>
+{% endfor %}
+<h2>Pending requests</h2>
+{% for row in pending %}
+<section class="panel pending-request">
+    <h3>Request #{{ row.id }}{% if row.info %} · {{ row.info.cn }}{% endif %}</h3>
+    <p>Submitted {{ row.created_at }}</p>
+    {% if row.info %}
+    <dl>
+        <dt>Common name</dt><dd>{{ row.info.cn }}</dd>
+        <dt>Organization</dt><dd>{{ row.info.org or 'None' }}</dd>
+        <dt>DNS names and IP addresses</dt><dd>{{ row.info.sans | join(', ') or 'None' }}</dd>
+    </dl>
+    {% else %}
+    <p class="error">This signing request is invalid. Reject it and ask for a new request.</p>
+    {% endif %}
+    <div class="actions">
+        {% if row.info %}
+        <form method="post" action="{{ url_for('approve_request', request_id=row.id) }}">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <button type="submit">Approve</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('reject_request', request_id=row.id) }}">
+            <input type="hidden" name="csrf" value="{{ session.csrf }}">
+            <button class="reject" type="submit">Reject</button>
+        </form>
+    </div>
+</section>
+{% else %}
+<p>No pending requests.</p>
+{% endfor %}
+<h2>Issued certificates</h2>
+<p><a class="text-link" href="{{ url_for('download_root') }}">Download root CA certificate</a></p>
+{% if certs %}
+<div class="table-scroll">
+    <table>
+        <thead><tr><th>Request</th><th>Common name</th><th>Expires</th><th>Certificate</th></tr></thead>
+        <tbody>
+        {% for cert in certs %}
+        <tr>
+            <td>#{{ cert.request_id }}</td>
+            <td>{{ cert.cn }}</td>
+            <td>{{ cert.not_after }}</td>
+            <td><a class="text-link" href="{{ url_for('download_cert', serial=cert.serial) }}">Download PEM</a></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<p>No certificates issued yet.</p>
+{% endif %}
+{% endblock %}

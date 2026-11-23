@@ -12,7 +12,7 @@
         <nav aria-label="Main navigation">
             <a href="{{ url_for('dashboard') }}"{% if request.path == '/' %} aria-current="page"{% endif %}>Dashboard</a>
             <a href="{{ url_for('submit_request') }}"{% if request.path.startswith('/request') %} aria-current="page"{% endif %}>Request</a>
-            <a href="{{ request.script_root }}/admin">Admin</a>
+            <a href="{{ url_for('admin') }}"{% if request.path.startswith('/admin') %} aria-current="page"{% endif %}>Admin</a>
         </nav>
     </header>
     <main>
