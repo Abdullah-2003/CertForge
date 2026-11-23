@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}{{ cert.cn }} | CertForge{% endblock %}
+{% block content %}
+<p><a class="text-link" href="{{ url_for('dashboard') }}">Back to certificates</a></p>
+<div class="admin-heading cert-heading">
+    <h1>{{ cert.cn }}</h1>
+    <span class="badge badge-{{ cert.status }}">{{ cert.status | capitalize }}</span>
+</div>
+<p class="actions">
+    <a class="text-link" href="{{ url_for('download_cert', serial=cert.serial) }}">Download certificate</a>
+    <a class="text-link" href="{{ url_for('download_root') }}">Download root CA</a>
+    <a class="text-link" href="{{ url_for('download_crl') }}">Download CRL</a>
+</p>
+<section class="panel cert-fields">
+    <h2>Certificate details</h2>
+    <dl>
+        <dt>Serial number (hex)</dt><dd>{{ cert.serial }}</dd>
+        <dt>Request</dt><dd>{{ '#' ~ cert.request_id if cert.request_id is not none else 'None' }}</dd>
+        <dt>Common name</dt><dd>{{ cert.cn }}</dd>
+        <dt>Subject</dt><dd>{{ cert.subject }}</dd>
+        <dt>DNS names and IP addresses (SANs)</dt><dd>{{ cert.sans | join(', ') or 'None' }}</dd>
+        <dt>Issuer</dt><dd>{{ cert.issuer }}</dd>
+        <dt>Valid from</dt><dd><time datetime="{{ cert.not_before.isoformat() }}">{{ cert.not_before.strftime('%Y-%m-%d %H:%M:%S UTC') }}</time></dd>
+        <dt>Expires</dt><dd><time datetime="{{ cert.not_after.isoformat() }}">{{ cert.not_after.strftime('%Y-%m-%d %H:%M:%S UTC') }}</time></dd>
+        <dt>Days remaining until expiry</dt><dd>{{ cert.days }} (rounded up)</dd>
+        <dt>SHA-256 fingerprint</dt><dd><code>{{ cert.fingerprint }}</code></dd>
+    </dl>
+</section>
+<section class="panel cert-fields">
+    <h2>Certificate chain</h2>
+    <ol class="cert-chain">
+        <li><strong>Root CA</strong><p>{{ root.subject.rfc4514_string() }}</p></li>
+        <li><strong>Leaf certificate</strong><p>{{ cert.subject }}</p><p>Issued by {{ cert.issuer }}</p></li>
+    </ol>
+</section>
+<section class="panel cert-fields">
+    <h2>Revocation</h2>
+    {% if cert.revoked_at %}
+    <dl>
+        <dt>Revoked at</dt><dd><time datetime="{{ cert.revoked_at.isoformat() }}">{{ cert.revoked_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</time></dd>
+        <dt>Reason</dt><dd>{{ cert.revoke_reason or 'unspecified' }}</dd>
+    </dl>
+    {% else %}
+    <p>This certificate has not been revoked.</p>
+    {% endif %}
+</section>
+<details class="panel cert-fields">
+    <summary>Certificate PEM</summary>
+    <pre>{{ cert.pem }}</pre>
+</details>
+{% endblock %}

@@ -195,3 +195,84 @@ th, td {
     text-align: left;
     border-bottom: 1px solid #e2e8f0;
 }
+
+.cert-counts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+}
+
+.cert-counts strong, .cert-counts span, .cert-sans {
+    display: block;
+}
+
+.cert-counts strong {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+}
+
+.cert-sans {
+    margin-top: 0.5rem;
+    color: #475569;
+}
+
+.cert-table {
+    min-width: 900px;
+}
+
+.cert-table td {
+    vertical-align: top;
+    overflow-wrap: anywhere;
+    max-width: 240px;
+}
+
+.badge {
+    display: inline-block;
+    border-radius: 1rem;
+    padding: 0.25rem 0.75rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.badge-valid {
+    background: #ccfbf1;
+    color: #115e59;
+}
+
+.badge-expired {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-revoked {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.cert-fields {
+    margin-top: 1.5rem;
+    overflow-wrap: anywhere;
+}
+
+.cert-fields pre {
+    overflow-x: auto;
+}
+
+.cert-heading h1 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.cert-chain {
+    padding-left: 1.5rem;
+}
+
+.cert-chain li + li {
+    margin-top: 1.5rem;
+}
+
+summary {
+    cursor: pointer;
+    font-weight: 600;
+}

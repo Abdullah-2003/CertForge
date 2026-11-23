@@ -1,2 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Dashboard | CertForge{% endblock %}
+{% block content %}
+<div class="admin-heading">
+    <div>
+        <h1>Certificates</h1>
+        <p>Issued certificates, expiry dates, and current revocation status.</p>
+    </div>
+    <a class="text-link" href="{{ url_for('submit_request') }}">Request a certificate</a>
+</div>
+<div class="cert-counts" aria-label="Certificate counts">
+    <div class="panel"><strong>{{ certs | length }}</strong><span>Total certificates</span></div>
+    <div class="panel"><strong>{{ counts.valid }}</strong><span>Valid</span></div>
+    <div class="panel"><strong>{{ counts.expired }}</strong><span>Expired</span></div>
+    <div class="panel"><strong>{{ counts.revoked }}</strong><span>Revoked</span></div>
+</div>
+{% if certs %}
+<p>All dates are UTC. Days remaining are rounded up to the next whole day.</p>
+<div class="table-scroll" role="region" aria-label="Issued certificates" tabindex="0">
+    <table class="cert-table">
+        <thead>
+            <tr><th scope="col">Common name / SANs</th><th scope="col">Issuer</th><th scope="col">Valid from</th><th scope="col">Expires</th><th scope="col">Status</th><th scope="col">Days remaining</th></tr>
+        </thead>
+        <tbody>
+        {% for cert in certs %}
+        <tr>
+            <td><a class="text-link" href="{{ url_for('cert_detail', serial=cert.serial) }}">{{ cert.cn }}</a><small class="cert-sans">{{ cert.sans | join(', ') or 'No SANs' }}</small></td>
+            <td>{{ cert.issuer }}</td>
+            <td><time datetime="{{ cert.not_before.isoformat() }}">{{ cert.not_before.strftime('%Y-%m-%d %H:%M') }}</time></td>
+            <td><time datetime="{{ cert.not_after.isoformat() }}">{{ cert.not_after.strftime('%Y-%m-%d %H:%M') }}</time></td>
+            <td><span class="badge badge-{{ cert.status }}">{{ cert.status | capitalize }}</span></td>
+            <td>{{ cert.days }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<section class="panel">
+    <h2>No certificates issued yet</h2>
+    <p>Submit a request and have an administrator approve it. Issued certificates will appear here.</p>
+</section>
+{% endif %}
+{% endblock %}

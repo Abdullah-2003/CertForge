@@ -1,10 +1,12 @@
 import datetime as dt
+import math
 import os
 import secrets
 from io import BytesIO
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import NameOID
 from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
 
@@ -163,7 +165,40 @@ def create_app(test_config=None):
 
     @app.get("/")
     def dashboard():
-        return render_template("index.html")
+        now = dt.datetime.now(dt.timezone.utc)
+        rows = db.get_db().execute("SELECT * FROM certs ORDER BY not_before DESC, serial").fetchall()
+        certs = [cert_info(row, now) for row in rows]
+        counts = {state: sum(cert["status"] == state for cert in certs) for state in ("valid", "expired", "revoked")}
+        return render_template("index.html", certs=certs, counts=counts)
+
+    def cert_info(row, now):
+        info = dict(row)
+        cert = x509.load_pem_x509_certificate(row["pem"].encode())
+        try:
+            sans = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+        except x509.ExtensionNotFound:
+            sans = []
+        info["sans"] = [str(name.value) for name in sans]
+        info["subject"] = cert.subject.rfc4514_string()
+        info["fingerprint"] = cert.fingerprint(hashes.SHA256()).hex(":")
+        info["status"] = revoke.status(row, now)
+        for name in ("not_before", "not_after", "revoked_at"):
+            if info[name]:
+                date = dt.datetime.fromisoformat(info[name])
+                if date.tzinfo is None:
+                    date = date.replace(tzinfo=dt.timezone.utc)
+                info[name] = date.astimezone(dt.timezone.utc)
+        info["days"] = max(0, math.ceil((info["not_after"] - now).total_seconds() / 86400))
+        return info
+
+    @app.get("/certs/<serial>")
+    def cert_detail(serial):
+        row = db.get_db().execute("SELECT * FROM certs WHERE serial = ?", (serial,)).fetchone()
+        if row is None:
+            abort(404)
+        cert = cert_info(row, dt.datetime.now(dt.timezone.utc))
+        root = x509.load_pem_x509_certificate((Path(app.instance_path) / "ca" / "root.pem").read_bytes())
+        return render_template("cert.html", cert=cert, root=root)
 
     @app.route("/request", methods=["GET", "POST"])
     def submit_request():
