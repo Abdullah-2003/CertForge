@@ -46,19 +46,42 @@
 {% if certs %}
 <div class="table-scroll">
     <table>
-        <thead><tr><th>Request</th><th>Common name</th><th>Expires</th><th>Certificate</th></tr></thead>
+        <thead><tr><th>Request</th><th>Common name</th><th>Expires</th><th>Status</th><th>Certificate</th><th>Revoke</th></tr></thead>
         <tbody>
         {% for cert in certs %}
         <tr>
             <td>#{{ cert.request_id }}</td>
             <td>{{ cert.cn }}</td>
             <td>{{ cert.not_after }}</td>
+            <td>
+                {% if cert.revoked_at %}
+                <span class="status status-revoked">Revoked ({{ cert.revoke_reason }})</span>
+                {% else %}
+                <span class="status status-{{ status(cert) }}">{{ status(cert) }}</span>
+                {% endif %}
+            </td>
             <td><a class="text-link" href="{{ url_for('download_cert', serial=cert.serial) }}">Download PEM</a></td>
+            <td>
+                {% if not cert.revoked_at %}
+                <form method="post" action="{{ url_for('revoke_cert', serial=cert.serial) }}" class="revoke-form">
+                    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+                    <select name="reason">
+                        <option value="unspecified">Unspecified</option>
+                        <option value="keyCompromise">Key compromise</option>
+                        <option value="affiliationChanged">Affiliation changed</option>
+                        <option value="superseded">Superseded</option>
+                        <option value="cessationOfOperation">Cessation of operation</option>
+                    </select>
+                    <button class="reject" type="submit">Revoke</button>
+                </form>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
+<p><a class="text-link" href="{{ url_for('download_crl') }}">Download current CRL</a></p>
 {% else %}
 <p>No certificates issued yet.</p>
 {% endif %}

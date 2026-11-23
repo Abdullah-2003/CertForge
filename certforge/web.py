@@ -8,7 +8,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 from flask import Flask, abort, flash, redirect, render_template, request, send_file, session, url_for
 
-from . import ca, db
+from . import ca, db, revoke
 
 
 def create_app(test_config=None):
@@ -28,6 +28,9 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.init_db()
+        cadir = Path(app.instance_path) / "ca"
+        if not (cadir / "crl.pem").exists():
+            revoke.build_crl(cadir, db.get_db())
 
     @app.before_request
     def check_admin():
@@ -79,8 +82,10 @@ def create_app(test_config=None):
             except ValueError:
                 info = None
             pending.append({"id": row["id"], "created_at": row["created_at"], "info": info})
-        certs = conn.execute("SELECT serial, request_id, cn, not_after FROM certs ORDER BY not_before DESC").fetchall()
-        return render_template("admin.html", pending=pending, certs=certs)
+        certs = conn.execute(
+            "SELECT serial, request_id, cn, not_after, revoked_at, revoke_reason FROM certs ORDER BY not_before DESC"
+        ).fetchall()
+        return render_template("admin.html", pending=pending, certs=certs, status=revoke.status)
 
     @app.post("/admin/approve/<int:request_id>")
     def approve_request(request_id):
@@ -120,6 +125,18 @@ def create_app(test_config=None):
         flash(f"Request #{request_id} rejected.")
         return redirect(url_for("admin"))
 
+    @app.post("/admin/revoke/<serial>")
+    def revoke_cert(serial):
+        conn = db.get_db()
+        reason = request.form.get("reason", "unspecified")
+        try:
+            revoke.revoke(conn, serial, reason)
+        except ValueError:
+            abort(404)
+        revoke.build_crl(Path(app.instance_path) / "ca", conn)
+        flash(f"Certificate {serial} revoked.")
+        return redirect(url_for("admin"))
+
     @app.get("/certs/<serial>.pem")
     def download_cert(serial):
         row = db.get_db().execute("SELECT pem FROM certs WHERE serial = ?", (serial,)).fetchone()
@@ -136,6 +153,13 @@ def create_app(test_config=None):
             Path(app.instance_path) / "ca" / "root.pem", mimetype="application/x-pem-file",
             as_attachment=True, download_name="root.pem",
         )
+
+    @app.get("/crl.pem")
+    def download_crl():
+        path = Path(app.instance_path) / "ca" / "crl.pem"
+        if not path.exists():
+            abort(404)
+        return send_file(path, mimetype="application/pkix-crl", as_attachment=True, download_name="crl.pem")
 
     @app.get("/")
     def dashboard():
