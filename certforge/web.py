@@ -163,6 +163,25 @@ def create_app(test_config=None):
             abort(404)
         return send_file(path, mimetype="application/pkix-crl", as_attachment=True, download_name="crl.pem")
 
+    @app.route("/verify", methods=["GET", "POST"])
+    def verify_cert():
+        if "csrf" not in session:
+            session["csrf"] = secrets.token_hex(32)
+        result = None
+        if request.method == "POST":
+            if not secrets.compare_digest(session["csrf"].encode(), request.form.get("csrf", "").encode()):
+                abort(400)
+            uploaded = request.files.get("cert_file")
+            if uploaded and uploaded.filename:
+                cert_pem = uploaded.read()
+            else:
+                cert_pem = request.form.get("cert", "").strip().encode("utf-8")
+            if not cert_pem:
+                result = (False, "paste a certificate or choose a file")
+            else:
+                result = revoke.verify(Path(app.instance_path) / "ca", db.get_db(), cert_pem)
+        return render_template("verify.html", result=result)
+
     @app.get("/")
     def dashboard():
         now = dt.datetime.now(dt.timezone.utc)

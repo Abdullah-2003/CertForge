@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Verify a certificate | CertForge{% endblock %}
+{% block content %}
+<h1>Verify a certificate</h1>
+<p>Paste a certificate's PEM text or choose a file. We check its signature against the CertForge root, its validity window, and the current CRL.</p>
+{% if result %}
+{% set ok, reason = result %}
+<section class="panel {{ 'notice' if ok else 'error' }}" role="status">
+    {% if ok %}
+    <strong>Valid.</strong> This certificate chains to the CertForge root, is within its validity window, and is not revoked.
+    {% else %}
+    <strong>Not valid.</strong> {{ reason }}.
+    {% endif %}
+</section>
+{% endif %}
+<form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ session.csrf }}">
+    <label for="cert">Certificate PEM</label>
+    <textarea id="cert" name="cert" rows="10" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+    <label for="cert_file">Or choose a .pem file</label>
+    <input type="file" id="cert_file" name="cert_file" accept=".pem,.crt,.cer">
+    <button type="submit">Verify</button>
+</form>
+{% endblock %}

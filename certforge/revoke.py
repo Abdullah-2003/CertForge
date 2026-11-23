@@ -2,7 +2,9 @@ import datetime as dt
 from pathlib import Path
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 
 from . import ca
 
@@ -57,3 +59,33 @@ def build_crl(cadir, conn):
     pem = crl.public_bytes(serialization.Encoding.PEM)
     (cadir / "crl.pem").write_bytes(pem)
     return pem
+
+
+def verify(cadir, conn, cert_pem):
+    cadir = Path(cadir)
+    try:
+        cert = x509.load_pem_x509_certificate(cert_pem)
+    except ValueError:
+        return False, "not a valid certificate"
+
+    _, cacert = ca.load_root(cadir)
+    try:
+        cacert.public_key().verify(
+            cert.signature, cert.tbs_certificate_bytes, ec.ECDSA(cert.signature_hash_algorithm)
+        )
+    except (InvalidSignature, TypeError, ValueError):
+        return False, "signature does not chain to the CertForge root"
+
+    now = dt.datetime.now(dt.timezone.utc)
+    if now < cert.not_valid_before_utc:
+        return False, "not yet valid"
+    if now > cert.not_valid_after_utc:
+        return False, "expired"
+
+    crl_path = cadir / "crl.pem"
+    if crl_path.exists():
+        crl = x509.load_pem_x509_crl(crl_path.read_bytes())
+        if crl.get_revoked_certificate_by_serial_number(cert.serial_number) is not None:
+            return False, "revoked"
+
+    return True, "ok"
