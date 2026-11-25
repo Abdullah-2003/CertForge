@@ -44,3 +44,9 @@ page over `https://localhost:8443`.
    `python demo/serve.py --port 8444 --self-signed` and load
    `https://localhost:8444` — this certificate isn't issued by CertForge at
    all, so it's untrusted.
+
+## Tests
+
+```
+python -m pytest
+```
